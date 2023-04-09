@@ -1,0 +1,1 @@
+pm2 stop video_convert  # Stop the running app
