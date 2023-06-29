@@ -65,20 +65,29 @@ app.post('/webm2mp4', async (req, res) => {
     const tmpName = path.join(outDir, path.basename(file.filepath) + '.webm');
     const outputName = path.join(outDir, generateFileName());
     fs.renameSync(file.filepath, tmpName)
-    await new Promise((resolve, reject) => {
-      exec(`ffmpeg -i ${tmpName} -c:v libx264 -an ${outputName}`, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`ffmpeg error：${error} `);
-          console.log(`stdout: ${stdout} `);
-          console.error(`stderr: ${stderr} `);
-          reject(error)
-          return;
-        } else {
-          resolve()
-        }
-      });
-    })
-
+    const execCMD = () => {
+      if (fs.existsSync(outputName)) {
+        fs.unlinkSync(outputName);
+      }
+      return new Promise((resolve, reject) => {
+        exec(`ffmpeg -i ${tmpName} -c:v libx264 -an ${outputName}`, (error, stdout, stderr) => {
+          resolve({ error, stdout, stderr })
+        });
+      })
+    }
+    // try twice
+    let t = await execCMD();
+    if (t.error) {
+      t = await execCMD();
+    }
+    // 
+    if (t.error) {
+      const { error, stdout, stderr } = t
+      console.error(`ffmpeg error：${error} `);
+      console.log(`stdout: ${stdout} `);
+      console.error(`stderr: ${stderr} `);
+      throw error
+    }
     res.status(200).json({ success: true, filename: path.basename(outputName) });
   } catch (err) {
     console.error(err);
